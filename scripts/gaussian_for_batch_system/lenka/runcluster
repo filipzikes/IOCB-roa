@@ -1,0 +1,95 @@
+#!/bin/bash
+list=($(cat listcluster))
+for i in ${list[@]}
+do
+
+snapdir="${i}-dir"
+stime="5m"
+xshelldist=0
+
+#SCRIPT 1 - (freq=noraman)
+mkdir $snapdir
+cd $snapdir
+cp ../G.TXT .
+cp ../XSHELL.OPT .
+cp ../$i FILE.X
+xshell $xshelldist
+mv NEWFILE.X FILE.X
+xinp
+mv FILE.INP freq.inp
+subg16 freq.inp
+
+while [[ ! -f $snapdir/freq.log ]]
+do
+  sleep $stime
+done
+if [[  $(grep "Normal t" "$snapdir/freq.log" | wc -l)  == 0 ]]; then
+exit 11
+fi
+
+
+#SCRIPT 2 - (force)
+cp freq.log FRE.OUT
+cp FRE.OUT G98.OUT
+touch AUTO
+/home/zikes/scripts/gar9
+mkdir nmode
+cd nmode
+cp ../../Gmode.TXT G.TXT
+cp ../../Q.OPT .
+cp ../FILE.* .
+/home/zikes/scripts/xinp
+mv FILE.INP G98.INP
+/home/zikes/scripts/new1
+printf "0\n0\ny" |/home/zikes/scripts/new2
+/home/zikes/scripts/subqgrad09 long 4
+#system("qsub -q long -pe cre 4 nmode.bsh");
+qsub nmode.bsh
+
+while [[ ! -f $snapdir/nmode/QGRAD.OUT ]]
+do
+  sleep $stime
+done
+if [[ $(grep "Converged" "$snapdir/nmode/QGRAD.OUT" | wc -l)  == 0 ]]; then
+exit 12
+fi
+
+
+#SCRIPT 3 - (freq=(roa,vcd))
+mkdir roa
+cd roa
+cp ../G98.INP roa.inp
+sed -i "s/force/freq=(roa,vcd)/" roa.inp
+sed -i "/guess=checkpoint/d" roa.inp
+sed -i "s/mem=4GB/mem=8GB/" roa.inp
+echo "532 nm" >> roa.inp
+echo " " >> roa.inp
+subg16 roa.inp
+
+
+while [[ ! -f $snapdir/nmode/roa/roa.log ]]
+do
+  sleep $stime
+done
+if [[  $(grep "Normal t" "$snapdir/nmode/roa/roa.log" | wc -l)  == 0 ]]; then
+exit 13
+fi
+
+
+#SCRIPT 4 - (spectra.prn)
+cp roa.log FRE.OUT
+cp ../../../ROA.OPT .
+touch AUTO
+/home/zikes/scripts/gar9
+/home/zikes/scripts/new1
+printf "0\n0\ny" |/home/zikes/scripts/new2
+/home/zikes/scripts/new4
+cp ../../../EA.LST .
+/home/zikes/scripts/eattt
+/home/zikes/scripts/new5
+/home/zikes/scripts/new6
+/home/zikes/scripts/filter
+
+touch FINISHED
+
+done
