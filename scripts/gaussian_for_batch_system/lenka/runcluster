@@ -19,11 +19,11 @@ xinp
 mv FILE.INP freq.inp
 subg16 freq.inp
 
-while [[ ! -f $snapdir/freq.log ]]
+while [[ ! -f freq.log ]]
 do
   sleep $stime
 done
-if [[  $(grep "Normal t" "$snapdir/freq.log" | wc -l)  == 0 ]]; then
+if [[  $(grep "Normal t" freq.log | wc -l)  == 0 ]]; then
 exit 11
 fi
 
@@ -46,11 +46,11 @@ printf "0\n0\ny" |/home/zikes/scripts/new2
 #system("qsub -q long -pe cre 4 nmode.bsh");
 qsub nmode.bsh
 
-while [[ ! -f $snapdir/nmode/QGRAD.OUT ]]
+while [[ ! -f QGRAD.OUT ]]
 do
   sleep $stime
 done
-if [[ $(grep "Converged" "$snapdir/nmode/QGRAD.OUT" | wc -l)  == 0 ]]; then
+if [[ $(grep "Converged" QGRAD.OUT | wc -l)  == 0 ]]; then
 exit 12
 fi
 
@@ -67,11 +67,11 @@ echo " " >> roa.inp
 subg16 roa.inp
 
 
-while [[ ! -f $snapdir/nmode/roa/roa.log ]]
+while [[ ! -f roa.log ]]
 do
   sleep $stime
 done
-if [[  $(grep "Normal t" "$snapdir/nmode/roa/roa.log" | wc -l)  == 0 ]]; then
+if [[  $(grep "Normal t" roa.log | wc -l)  == 0 ]]; then
 exit 13
 fi
 

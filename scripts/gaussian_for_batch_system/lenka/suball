@@ -68,6 +68,7 @@ cd \$SCRATCHDIR
 cp $abspath/* \$SCRATCHDIR
 
 /usr/local/g16-A.03/g16 $infile $outfile
+cp freq.log $abspath/
 
 #SUB RUN 2 = (subqgrad09)
 export LD_LIBRARY_PATH=""
@@ -75,11 +76,11 @@ export PATH=/bin:/usr/bin:/usr/local/bin:/share/bour/New:/share/\$LOGNAME/bin
 export g03root=""
 export g09root=/usr/local/G09A02_em64t
 source \$g09root/g09/bsd/g09.profile
-export WDIR=/share/`pwd | cut -d "/" -f3-`
+#export WDIR=/share/`pwd | cut -d "/" -f3-`
 mkdir nmode
 export CMPDIR=\$SCRPATH/\$JOB_NAME.\$JOB_ID/nmode
 
-cp $WDIR/* \$CMPDIR/
+cp $abspath/nmode/* \$CMPDIR/
 cp freq.log FRE.OUT
 cp FRE.OUT G98.OUT
 touch AUTO
@@ -111,6 +112,7 @@ while [ -f "INP.NEW" ]; do
 
 done
 
+cp G98.OUT $abspath/nmode/
 #cp -r \$CMPDIR/* \$WDIR/ && rm -rf \$CMPDIR && echo "OK"
 
 #SUB RUN 3 = (subg16)
@@ -123,9 +125,10 @@ sed -i "s/mem=4GB/mem=8GB/" roa.inp
 echo "532 nm" >> roa.inp
 echo " " >> roa.inp
 /usr/local/g16-A.03/g16 roa.inp roa.log
+cp roa.log $abspath/nmode/roa/
 
 #SUB RUN 4
-cp $FDIR/* .
+cp $abspath/nmode/roa/* .
 cp roa.log FRE.OUT
 touch AUTO
 /share/zikes/scripts/gar9
