@@ -1,8 +1,8 @@
 #!/bin/sh
-#SUBALL for lenka
+#SUBALL for electra
 
 stime="5m"
-xshelldist=0
+xshelldist=3.1
 inputfile=$1
 jobname=sub-$1-$RANDOM
 infile=freq.inp
@@ -13,21 +13,40 @@ if [[  $(grep "Normal t" ${inputfile}-dir/${outfile} -s | wc -l)  == 0 ]]; then
 mkdir $inputfile-dir
 cd $inputfile-dir
 cp ../G.TXT .
+
+if [ -f ../AFTER.GEN.TXT ]; then
+cp ../AFTER.GEN.TXT AFTER.TXT
+touch GAUS_GEN_BASIS
+else
+#cp ../AFTER.TXT . 2>/dev/null
+cp ../AFTER.TXT . | true
+fi
+
 cp ../XSHELL.OPT .
 cp ../$inputfile FILE.X
 xshell $xshelldist
 mv NEWFILE.X FILE.X
 xinp
 mv FILE.INP $infile
+
+natoms=$(( $(wc -l < FILE.X) - 2))
+if [ -f GAUS_GEN_BASIS ]; then
+sed -i "s/lastatom/${natoms}/" $infile
+fi
+
 #subg16 freq.inp
 
 else
 echo "SKIPPING PART 1 - Frequencies"
 cd $inputfile-dir
+if [ -f ../AFTER.GEN.TXT ]; then
+cp ../AFTER.GEN.TXT AFTER.TXT
+touch GAUS_GEN_BASIS
+fi
+natoms=$(( $(wc -l < FILE.X) - 2))
 fi
 abspath=`pwd`
 abspath=/share/`echo $abspath | cut -d "/" -f3-`
-
 
 
 #SCRIPT 2
@@ -38,6 +57,7 @@ mkdir nmode
 cd nmode
 cp ../../Q.OPT .
 cp ../../Gmode.TXT G.TXT
+cp ../AFTER.TXT . | true
 
 else
 echo "SKIPPING PART 2 - Optimization"
@@ -68,6 +88,7 @@ cd ../..
 cat <<END  >>$jobname.bsh
 #!/bin/bash
 #$ -q $queue
+#$ -l num_proc=$nproc
 #$ -S /bin/bash
 #$ -N $jobname
 #$ -o $abspath/out
@@ -96,12 +117,11 @@ cp freq.log $abspath/
 fi
 
 
-#SUB RUN 2 = (subqgrad09)
+#SUB RUN 2 = (subqgrad16)
 export LD_LIBRARY_PATH=""
 export PATH=/bin:/usr/bin:/usr/local/bin:/share/bour/New:/share/\$LOGNAME/bin
-export g03root=""
-export g09root=/usr/local/G09A02_em64t
-source \$g09root/g09/bsd/g09.profile
+#export g16root=/usr/local/G16B
+#source \$g16root/g16/bsd/g16.profile
 #export WDIR=/share/`pwd | cut -d "/" -f3-`
 mkdir nmode
 export CMPDIR=\$SCRPATH/\$JOB_NAME.\$JOB_ID/nmode
@@ -118,6 +138,11 @@ cd nmode
 cp ../FILE.* .
 /share/zikes/scripts/xinp
 mv FILE.INP G98.INP
+
+if [ -f ../GAUS_GEN_BASIS ]; then
+sed -i "s/lastatom/$natoms/" G98.INP
+fi
+
 /share/zikes/scripts/new1
 printf "0\n0\ny" | /share/zikes/scripts/new2
 
@@ -127,21 +152,22 @@ printf "0\n0\ny" | /share/zikes/scripts/new2
 #and F.INP or FILE.FC and FTRY.INP present
 
 #g98 G98.INP G98.OUT
-g09 G98.INP G98.OUT
-/share/bour/New/qgrad
+/usr/local/g16-A.03/g16 G98.INP G98.OUT
+/share/zikes/scripts/qgrad
 
 while [ -f "INP.NEW" ]; do
 
  mv INP.NEW G98.INP
  cp G98.OUT G98.OUT.last
 #g98 G98.INP G98.OUT
- g09 G98.INP G98.OUT
- /share/bour/New/qgrad
+ /usr/local/g16-A.03/g16 G98.INP G98.OUT
+ /share/zikes/scripts/qgrad
 
 done
 
 cp G98.OUT $abspath/nmode/
 #cp -r \$CMPDIR/* \$WDIR/ && rm -rf \$CMPDIR && echo "OK"
+
 else
 cd nmode
 fi
@@ -155,8 +181,14 @@ cp ../G98.INP roa.inp
 sed -i "s/force/freq=(roa,vcd)/" roa.inp
 sed -i "/guess=checkpoint/d" roa.inp
 sed -i "s/mem=4GB/mem=8GB/" roa.inp
+
+if [ -f ../../GAUS_GEN_BASIS ]; then
+sed -i "s/1-16 0/532 nm\n\n1-16 0/" roa.inp
+else
 echo "532 nm" >> roa.inp
 echo " " >> roa.inp
+fi
+
 /usr/local/g16-A.03/g16 roa.inp roa.log
 cp roa.log $abspath/nmode/roa/
 fi

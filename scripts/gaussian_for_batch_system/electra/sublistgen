@@ -1,0 +1,13 @@
+#!/bin/bash
+
+echo "Loading list $1."; printf "\n\n"
+sub_list=($(cat $1))
+for i in ${sub_list[@]}
+do
+
+echo "Submitting $i to subgen."
+/home/zikes/scripts/subgen $i
+echo ""
+
+done
+
