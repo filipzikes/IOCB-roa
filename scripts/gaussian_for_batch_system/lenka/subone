@@ -1,0 +1,112 @@
+#!/bin/sh
+xshelldist=0
+inputfile=$1
+jobname=sub-$1-$RANDOM
+queue="long"
+nproc=4
+
+#RUN 1
+mkdir $inputfile-dir
+cd $inputfile-dir
+cp ../G.TXT .
+cp ../XSHELL.OPT .
+cp ../$inputfile FILE.X
+xshell $xshelldist
+mv NEWFILE.X FILE.X
+xinp
+mv FILE.INP freq.inp
+abspath=`pwd`
+abspath=/share/`echo $abspath | cut -d "/" -f3-`
+
+#RUN 2
+mkdir nmode
+cd nmode
+cp ../../Q.OPT .
+cp ../../Gmode.TXT G.TXT
+
+#RUN 3, 4
+mkdir roa
+cd roa
+cp ../../../ROA.OPT .
+cp ../../../EA.LST .
+cd ../..
+
+cat <<END  >>$jobname.bsh
+#!/bin/bash
+#$ -q $queue
+#$ -S /bin/bash
+#$ -N $jobname
+#$ -o $abspath/out
+#$ -j y
+#$ -r no
+#$ -c n
+#$ -V
+#$ -pe cre $nproc
+
+
+#RUN 1 = (subg16)
+export SCRPATH=/scratch/\$LOGNAME
+export SCRATCHDIR=/scratch/\$LOGNAME/\$JOB_NAME.\$JOB_ID
+export PATH=/bin:/usr/bin:/usr/local/bin:/share/bour/New:/share/\$LOGNAME/bin
+export g09root=/usr/local/G09A02_em64t
+source \$g09root/g09/bsd/g09.profile
+
+mkdir \$SCRATCHDIR
+cd \$SCRATCHDIR
+cp -r $abspath/* \$SCRATCHDIR
+uname -n > MACHINE.LOG
+cp MACHINE.LOG $abspath/
+
+/usr/local/g16-A.03/g16 freq.inp freq.log
+
+#SUB RUN 2 = (subqgrad09)
+cp freq.log FRE.OUT
+cp FRE.OUT G98.OUT
+touch AUTO
+/share/zikes/scripts/gar9
+cd nmode
+cp ../FILE.* .
+/share/zikes/scripts/xinp
+mv FILE.INP G98.INP
+/share/zikes/scripts/new1
+printf "0\n0\ny" | /share/zikes/scripts/new2
+
+g09 G98.INP G98.OUT
+/share/bour/New/qgrad
+
+while [ -f "INP.NEW" ]; do
+ mv INP.NEW G98.INP
+ cp G98.OUT G98.OUT.last
+ g09 G98.INP G98.OUT
+ /share/bour/New/qgrad
+done
+
+#SUB RUN 3 = (subg16)
+cd roa
+cp ../G98.INP roa.inp
+sed -i "s/force/freq=(roa,vcd)/" roa.inp
+sed -i "/guess=checkpoint/d" roa.inp
+sed -i "s/mem=4GB/mem=8GB/" roa.inp
+echo "532 nm" >> roa.inp
+echo " " >> roa.inp
+/usr/local/g16-A.03/g16 roa.inp roa.log
+
+#SUB RUN 4
+cp roa.log FRE.OUT
+touch AUTO
+/share/zikes/scripts/gar9
+/share/zikes/scripts/new1
+printf "0\n0\ny" | /share/zikes/scripts/new2
+/share/zikes/scripts/new4
+/share/zikes/scripts/eattt
+/share/zikes/scripts/new5
+/share/zikes/scripts/new6
+/share/zikes/scripts/filter
+cd ../../..
+
+cp -r \$SCRATCHDIR/* $abspath/ && rm -rf \$SCRATCHDIR && echo "OK"
+
+END
+
+qsub $jobname.bsh
+

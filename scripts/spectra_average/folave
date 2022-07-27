@@ -1,0 +1,51 @@
+AN="analysis-$(date +"%y%m%d-%H%M%S")"
+mkdir $AN
+echo "Output directory: ${AN}."; echo ""
+
+types=($(printf "ram\nroa\nvcd\nir"))
+for TP in ${types[@]}
+do
+
+echo "Calculating average of $TP."
+ls ??.x-dir/*/*/${TP}.prn > ${TP}_list
+ls ???.x-dir/*/*/${TP}.prn >> ${TP}_list
+ls ????.x-dir/*/*/${TP}.prn >> ${TP}_list
+ls ?????.x-dir/*/*/${TP}.prn >> ${TP}_list
+
+average_spectrum ${TP}_list n
+
+mkdir ${AN}/${TP}
+mv AVE-final.PRN ${AN}/${TP}/AVE-final.prn
+mv KON.PRN ${AN}/${TP}/KON.prn
+mv AVE.PRN ${AN}/${TP}/AVE.prn
+mv ${TP}_list ${AN}/${TP}/list
+
+if [ -f SPLIT.AVE ]; then
+cols=($(cat SPLIT.AVE))
+first=1
+for j in ${cols[@]}; do
+if [[ $first == 1 ]]; then
+CLS="\$"${j}
+first=0
+else
+CLS=${CLS}",\"  \",\$"${j}
+fi
+done
+CLS="awk '{ print "${CLS}" }' ${AN}/${TP}/AVE.prn > EVOL.prn"
+echo ${CLS} > SPLIT.CMD
+chmod 755 SPLIT.CMD
+./SPLIT.CMD
+rm SPLIT.CMD;
+mv EVOL.prn ${AN}/${TP}/EVOL.prn
+fi
+
+if [ ! -z "$2" ]; then
+cp ${AN}/${TP}/AVE-final.prn $1/FIN-${TP}-$2.prn
+cp ${AN}/${TP}/KON.prn $1/KON-${TP}-$2.prn
+cp ${AN}/${TP}/AVE.prn $1/AVE-${TP}-$2.prn
+cp ${AN}/${TP}/list $1/lst-${TP}-$2
+cp ${AN}/${TP}/EVOL.prn $1/EVOL-${TP}-$2.prn | true
+echo ${AN} > $1/info-$2
+fi
+
+done
